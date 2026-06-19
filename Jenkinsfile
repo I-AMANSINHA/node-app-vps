@@ -2,27 +2,59 @@ pipeline {
     agent any
 
     environment {
-        // Sets the port to 4000 for the environment
-        PORT = '4000'
+        IMAGE_NAME = "node-app"
+        CONTAINER_NAME = "node-app"
     }
 
     stages {
-        stage('Install Dependencies') {
+
+        stage('Checkout') {
             steps {
-                echo 'Installing node modules...'
-                // 'npm ci' is faster and safer than 'npm install' for automation
-                sh 'npm ci' 
+                checkout scm
             }
         }
 
-        stage('Deploy & Run') {
+        stage('Build Image') {
             steps {
-                echo 'Starting application on port 4000...'
-                // The 'nohup' and '&' run the server in the background 
-                // so the Jenkins build can finish without hanging forever
-                sh 'BUILD_ID=dontKillMe nohup npm start > app.log 2>&1 &'
+                sh """
+                docker build \
+                  -t ${IMAGE_NAME}:${BUILD_NUMBER} \
+                  -t ${IMAGE_NAME}:latest .
+                """
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh """
+                docker rm -f ${CONTAINER_NAME} || true
+
+                docker run -d \
+                  --name ${CONTAINER_NAME} \
+                  --restart unless-stopped \
+                  -p 4000:4000 \
+                  -e BUILD_NUMBER=${BUILD_NUMBER} \
+                  ${IMAGE_NAME}:${BUILD_NUMBER}
+                """
+            }
+        }
+
+        stage('Verify') {
+            steps {
+                sh '''
+                docker ps
+                '''
             }
         }
     }
-}
 
+    post {
+        success {
+            echo "Deployment Successful"
+        }
+
+        failure {
+            echo "Deployment Failed"
+        }
+    }
+}
