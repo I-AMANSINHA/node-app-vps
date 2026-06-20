@@ -8,53 +8,39 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
+        stage('Git Checkout') {
             steps {
                 checkout scm
+
+                sh '''
+                echo "Latest Commit:"
+                git log -1 --pretty=format:"%h | %an | %s"
+                '''
             }
         }
 
-        stage('Build Image') {
+        stage('Build') {
             steps {
-                sh """
+                sh '''
                 docker build \
-                  -t ${IMAGE_NAME}:${BUILD_NUMBER} .
-      
-                """
+                  -t ${IMAGE_NAME}:${BUILD_NUMBER} \
+                  -t ${IMAGE_NAME}:latest .
+                '''
             }
         }
 
         stage('Deploy') {
             steps {
-                sh """
+                sh '''
                 docker rm -f ${CONTAINER_NAME} || true
 
                 docker run -d \
                   --name ${CONTAINER_NAME} \
-                  --restart unless-stopped \
                   -p 4000:4000 \
-                  -e BUILD_NUMBER=${BUILD_NUMBER} \
+                  --restart unless-stopped \
                   ${IMAGE_NAME}:${BUILD_NUMBER}
-                """
-            }
-        }
-
-        stage('Verify') {
-            steps {
-                sh '''
-                docker ps
                 '''
             }
-        }
-    }
-
-    post {
-        success {
-            echo "Deployment Successful"
-        }
-
-        failure {
-            echo "Deployment Failed"
         }
     }
 }
