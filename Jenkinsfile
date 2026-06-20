@@ -23,8 +23,7 @@ pipeline {
             steps {
                 sh '''
                 docker build \
-                  -t ${IMAGE_NAME}:${BUILD_NUMBER} \
-                  -t ${IMAGE_NAME}:latest .
+                  -t ${IMAGE_NAME}:${BUILD_NUMBER} .
                 '''
             }
         }
